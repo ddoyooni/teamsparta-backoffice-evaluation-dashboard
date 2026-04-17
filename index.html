@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>다면평가 대시보드 - 내일배움캠프</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script>
+        // Prevent datalabels from auto-registering globally
+        Chart.defaults.plugins.datalabels = { display: false };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #e63946 0%, #f77f88 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.95;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            background: white;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background-color: #fafafa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #e63946;
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.1);
+        }
+
+        /* Data Management Section */
+        .data-management {
+            background: white;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-left: 4px solid #e63946;
+        }
+
+        .data-management h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .management-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: #e63946;
+            background-color: #fff5f5;
+        }
+
+        .upload-area.drag-over {
+            border-color: #e63946;
+            background-color: #ffe6e6;
+        }
+
+        .upload-area p {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        #excelInput {
+            display: none;
+        }
+
+        .upload-button {
+            background-color: #e63946;
+            color: white;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+        }
+
+        .upload-button:hover {
+            background-color: #d62828;
+        }
+
+        .json-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .json-button {
+            background-color: #666;
+            color: white;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .json-button:hover {
+            background-color: #555;
+        }
+
+        #jsonInput {
+            display: none;
+        }
+
+        .chapters-section {
+            margin-top: 20px;
+        }
+
+        .chapters-section h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .chapters-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chapter-chip {
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .chapter-chip.loaded {
+            background-color: #e8f5e9;
+            border-color: #4caf50;
+        }
+
+        .chapter-chip .remove-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #999;
+            font-size: 16px;
+            padding: 0;
+            margin-left: 5px;
+            transition: color 0.2s ease;
+        }
+
+        .chapter-chip .remove-btn:hover {
+            color: #333;
+        }
+
+        .chapter-chip[draggable="true"] {
+            cursor: move;
+        }
+
+        .chapter-chip.drag-over {
+            background: #e63946 !important;
+            color: white !important;
+            transform: scale(1.05);
+        }
+
+        .chapter-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .chapter-input-group input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .chapter-input-group input:focus {
+            outline: none;
+            border-color: #e63946;
+            box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.1);
+        }
+
+        /* Trend Section */
+        .trend-section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .section-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .control-group input[type="checkbox"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            accent-color: #e63946;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+
+        /* Student Detection Module */
+        .detection-module {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+
+        .detection-module > h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .detect-tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .detect-tab {
+            background: none;
+            border: none;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #888;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .detect-tab:hover { color: #555; }
+
+        .detect-tab.active {
+            color: #e63946;
+            border-bottom-color: #e63946;
+        }
+
+        .detect-panel { display: none; }
+        .detect-panel.active { display: block; }
+
+        .detect-filters {
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .detect-filter-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .detect-filter-row:last-child { margin-bottom: 0; }
+
+        .detect-filter-row > label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            min-width: 72px;
+            flex-shrink: 0;
+        }
+
+        .detect-select {
+            padding: 7px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .detect-select:focus {
+            outline: none;
+            border-color: #e63946;
+        }
+
+        .detect-arrow {
+            font-size: 18px;
+            color: #999;
+            font-weight: bold;
+        }
+
+        .bracket-toggles {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .bracket-btn {
+            padding: 6px 14px;
+            border: 1.5px solid #ddd;
+            border-radius: 20px;
+            background: white;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .bracket-btn:hover { border-color: #e63946; color: #e63946; }
+
+        .bracket-btn.selected {
+            background: #e63946;
+            border-color: #e63946;
+            color: white;
+        }
+
+        .detect-run-btn {
+            background: #e63946;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 9px 24px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .detect-run-btn:hover { background: #d62828; }
+
+        .detect-results {
+            min-height: 40px;
+        }
+
+        .detect-results-empty {
+            color: #bbb;
+            font-size: 13px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .detect-result-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .detect-result-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #555;
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 2px solid #eee;
+        }
+
+        .detect-result-table td {
+            padding: 9px 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .detect-result-table tr:hover td {
+            background: #fff8f8;
+        }
+
+        .detect-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .badge-red { background: #ffe0e0; color: #c0392b; }
+        .badge-yellow { background: #fff8e0; color: #b8860b; }
+        .badge-green { background: #e0f5e0; color: #27ae60; }
+        .badge-blue { background: #e0ecf5; color: #2980b9; }
+
+        .detect-count {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        /* Individual Student Section */
+        .student-section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .student-selection {
+            margin-bottom: 20px;
+        }
+
+        .student-selection label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .student-multi-select {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .student-tag {
+            background-color: #e8f5e9;
+            border: 1px solid #4caf50;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .student-tag:not(.selected):hover {
+            background-color: #f0f0f0;
+            border-color: #ddd;
+        }
+
+        .student-tag.selected {
+            background-color: #e63946;
+            border-color: #e63946;
+            color: white;
+        }
+
+        .student-tag .remove-x {
+            margin-left: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* --- Trend metric row layout --- */
+        .trend-metric-row {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .trend-metric-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #e63946;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #fce4e6;
+        }
+
+        .trend-metric-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .trend-main-chart {
+            height: 280px;
+        }
+
+        .trend-proportions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .trend-proportion-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .trend-proportion-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 2px;
+        }
+
+        .trend-proportion-canvas {
+            flex: 1;
+            min-height: 80px;
+        }
+
+        .student-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .student-card {
+            background: linear-gradient(135deg, #fff 0%, #f9f9f9 100%);
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .student-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: #e63946;
+        }
+
+        .student-card-header {
+            text-align: center;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e63946;
+        }
+
+        .student-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .mini-chart-item {
+            margin-bottom: 4px;
+        }
+
+        .mini-chart-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 2px;
+            padding-left: 4px;
+        }
+
+        .mini-chart-canvas {
+            height: 120px;
+            width: 66%;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: #999;
+            font-size: 13px;
+        }
+
+        @media (max-width: 1024px) {
+            .filter-bar,
+            .management-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>다면평가 대시보드</h1>
+        <p id="headerSubtitle">제작자: KDT 교육운영팀 디자인/마케터 파트 (인턴) 임도윤</p>
+    </div>
+
+    <div class="container">
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>트랙</label>
+                <input type="text" id="trackInput" placeholder="트랙명 입력" oninput="appState.track=this.value; updateHeaderSubtitle(); saveFilterInputs()">
+            </div>
+            <div class="filter-group">
+                <label>기수</label>
+                <input type="text" id="sessionInput" placeholder="기수 입력 (예: 11회차)" oninput="appState.session=this.value; saveFilterInputs()">
+            </div>
+            <div class="filter-group">
+                <label>반</label>
+                <input type="text" id="classInput" placeholder="반 입력 (예: A반)" oninput="appState.class=this.value; saveFilterInputs()">
+            </div>
+        </div>
+
+        <!-- Data Management Section -->
+        <div class="data-management">
+            <h3>데이터 관리</h3>
+            <div class="management-content">
+                <div>
+                    <div class="chapter-input-group">
+                        <input type="text" id="chapterNameInput" placeholder="챕터 이름 입력 (선택)">
+                        <button class="upload-button" onclick="triggerExcelUpload()">엑셀 파일 선택</button>
+                    </div>
+                    <div class="upload-area" id="uploadArea">
+                        <p>📁 엑셀 파일을 드래그하여 업로드하거나 클릭하여 선택하세요</p>
+                        <p style="font-size: 12px; color: #999;">여러 파일 선택 가능 (.xlsx)</p>
+                    </div>
+                    <input type="file" id="excelInput" multiple accept=".xlsx,.xls">
+                </div>
+                <div>
+                    <h4 style="margin-bottom: 10px;">로드된 챕터</h4>
+                    <div class="chapters-list" id="chaptersList">
+                        <!-- Chapters will be added here dynamically -->
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <div class="json-buttons">
+                            <button class="json-button" onclick="exportDataAsJSON()">데이터 저장 (JSON)</button>
+                            <button class="json-button" onclick="triggerJSONUpload()">데이터 불러오기 (JSON)</button>
+                        </div>
+                        <input type="file" id="jsonInput" accept=".json">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trend Section -->
+        <div class="trend-section">
+            <div class="section-header">
+                <span>기수 전체 추이</span>
+            </div>
+            <div class="controls">
+                <div class="control-group">
+                    <input type="checkbox" id="npsCheck" checked>
+                    <label for="npsCheck">NPS</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="satisfactionCheck">
+                    <label for="satisfactionCheck">만족도</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="difficultyCheck">
+                    <label for="difficultyCheck">난이도</label>
+                </div>
+                <button class="upload-button" onclick="updateTrendCharts()">적용</button>
+            </div>
+            <div id="trendContainer">
+                <!-- Metric rows will be rendered here dynamically -->
+            </div>
+        </div>
+
+        <!-- Student Detection Module -->
+        <div class="detection-module">
+            <h3>🔍 수강생 탐지 모듈</h3>
+            <div class="detect-tabs">
+                <button class="detect-tab active" onclick="switchDetectTab('npsTransit')">NPS 구간 이동</button>
+                <button class="detect-tab" onclick="switchDetectTab('satTransit')">만족도 구간 이동</button>
+                <button class="detect-tab" onclick="switchDetectTab('diffDetect')">난이도 응답</button>
+                <button class="detect-tab" onclick="switchDetectTab('crossDetect')">NPS × 만족도 교차</button>
+            </div>
+
+            <!-- 1) NPS 구간 이동 탐지 -->
+            <div class="detect-panel active" id="panel-npsTransit">
+                <div class="detect-filters">
+                    <div class="detect-filter-row">
+                        <label>기준 챕터</label>
+                        <select class="detect-select" id="npsFromChapter"></select>
+                        <span class="detect-arrow">→</span>
+                        <select class="detect-select" id="npsToChapter"></select>
+                    </div>
+                    <div class="detect-filter-row">
+                        <label>이전 구간</label>
+                        <div class="bracket-toggles" id="npsFromBrackets">
+                            <button class="bracket-btn" data-bracket="0-6" onclick="toggleBracket(this)">0-6</button>
+                            <button class="bracket-btn" data-bracket="7-8" onclick="toggleBracket(this)">7-8</button>
+                            <button class="bracket-btn" data-bracket="9-10" onclick="toggleBracket(this)">9-10</button>
+                        </div>
+                    </div>
+                    <div class="detect-filter-row">
+                        <label>이후 구간</label>
+                        <div class="bracket-toggles" id="npsToBrackets">
+                            <button class="bracket-btn" data-bracket="0-6" onclick="toggleBracket(this)">0-6</button>
+                            <button class="bracket-btn" data-bracket="7-8" onclick="toggleBracket(this)">7-8</button>
+                            <button class="bracket-btn" data-bracket="9-10" onclick="toggleBracket(this)">9-10</button>
+                        </div>
+                    </div>
+                    <button class="detect-run-btn" onclick="runNpsTransition()">탐지</button>
+                </div>
+                <div class="detect-results" id="results-npsTransit"></div>
+            </div>
+
+            <!-- 2) 만족도 구간 이동 탐지 -->
+            <div class="detect-panel" id="panel-satTransit">
+                <div class="detect-filters">
+                    <div class="detect-filter-row">
+                        <label>기준 챕터</label>
+                        <select class="detect-select" id="satFromChapter"></select>
+                        <span class="detect-arrow">→</span>
+                        <select class="detect-select" id="satToChapter"></select>
+                    </div>
+                    <div class="detect-filter-row">
+                        <label>이전 구간</label>
+                        <div class="bracket-toggles" id="satFromBrackets">
+                            <button class="bracket-btn" data-bracket="1-6" onclick="toggleBracket(this)">1-6</button>
+                            <button class="bracket-btn" data-bracket="7-8" onclick="toggleBracket(this)">7-8</button>
+                            <button class="bracket-btn" data-bracket="9-10" onclick="toggleBracket(this)">9-10</button>
+                        </div>
+                    </div>
+                    <div class="detect-filter-row">
+                        <label>이후 구간</label>
+                        <div class="bracket-toggles" id="satToBrackets">
+                            <button class="bracket-btn" data-bracket="1-6" onclick="toggleBracket(this)">1-6</button>
+                            <button class="bracket-btn" data-bracket="7-8" onclick="toggleBracket(this)">7-8</button>
+                            <button class="bracket-btn" data-bracket="9-10" onclick="toggleBracket(this)">9-10</button>
+                        </div>
+                    </div>
+                    <button class="detect-run-btn" onclick="runSatTransition()">탐지</button>
+                </div>
+                <div class="detect-results" id="results-satTransit"></div>
+            </div>
+
+            <!-- 3) 난이도 응답 탐지 -->
+            <div class="detect-panel" id="panel-diffDetect">
+                <div class="detect-filters">
+                    <div class="detect-filter-row">
+                        <label>챕터</label>
+                        <select class="detect-select" id="diffChapter"></select>
+                    </div>
+                    <div class="detect-filter-row">
+                        <label>난이도 선택</label>
+                        <div class="bracket-toggles" id="diffValues">
+                            <button class="bracket-btn" data-bracket="1" onclick="toggleBracket(this)">1</button>
+                            <button class="bracket-btn" data-bracket="2" onclick="toggleBracket(this)">2</button>
+                            <button class="bracket-btn" data-bracket="3" onclick="toggleBracket(this)">3</button>
+                            <button class="bracket-btn" data-bracket="4" onclick="toggleBracket(this)">4</button>
+                            <button class="bracket-btn" data-bracket="5" onclick="toggleBracket(this)">5</button>
+                        </div>
+                    </div>
+                    <button class="detect-run-btn" onclick="runDifficultyDetect()">탐지</button>
+                </div>
+                <div class="detect-results" id="results-diffDetect"></div>
+            </div>
+
+            <!-- 4) NPS × 만족도 교차 탐지 -->
+            <div class="detect-panel" id="panel-crossDetect">
+                <div class="detect-filters">
+                    <div class="detect-filter-row">
+                        <label>챕터</label>
+                        <select class="detect-select" id="crossChapter"></select>
+                    </div>
+                    <div class="detect-filter-row">
+                        <label>NPS 구간</label>
+                        <div class="bracket-toggles" id="crossNpsBrackets">
+                            <button class="bracket-btn" data-bracket="0-6" onclick="toggleBracket(this)">0-6</button>
+                            <button class="bracket-btn" data-bracket="7-8" onclick="toggleBracket(this)">7-8</button>
+                            <button class="bracket-btn" data-bracket="9-10" onclick="toggleBracket(this)">9-10</button>
+                        </div>
+                    </div>
+                    <div class="detect-filter-row">
+                        <label>만족도 구간</label>
+                        <div class="bracket-toggles" id="crossSatBrackets">
+                            <button class="bracket-btn" data-bracket="1-6" onclick="toggleBracket(this)">1-6</button>
+                            <button class="bracket-btn" data-bracket="7-8" onclick="toggleBracket(this)">7-8</button>
+                            <button class="bracket-btn" data-bracket="9-10" onclick="toggleBracket(this)">9-10</button>
+                        </div>
+                    </div>
+                    <button class="detect-run-btn" onclick="runCrossDetect()">탐지</button>
+                </div>
+                <div class="detect-results" id="results-crossDetect"></div>
+            </div>
+        </div>
+
+        <!-- Individual Student Section -->
+        <div class="student-section">
+            <div class="section-header">개별 수강생 변화 추이</div>
+            <p style="font-size: 13px; color: #777; margin-bottom: 12px;">확인하고 싶은 수강생과 항목을 각각 선택하세요. (수강생/항목 복수 선택 가능)</p>
+
+            <div class="student-selection">
+                <label>수강생 선택</label>
+                <div class="student-multi-select" id="studentMultiSelect">
+                    <!-- Student tags will be added here dynamically -->
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <input type="checkbox" id="sNpsCheck" checked onchange="renderStudentIndividualCards()">
+                    <label for="sNpsCheck">NPS</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="sSatisfactionCheck" onchange="renderStudentIndividualCards()">
+                    <label for="sSatisfactionCheck">만족도</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="sDifficultyCheck" onchange="renderStudentIndividualCards()">
+                    <label for="sDifficultyCheck">난이도</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="sSkillCheck" checked onchange="renderStudentIndividualCards()">
+                    <label for="sSkillCheck">실력</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="sCommunicationCheck" onchange="renderStudentIndividualCards()">
+                    <label for="sCommunicationCheck">소통</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="sEngagementCheck" onchange="renderStudentIndividualCards()">
+                    <label for="sEngagementCheck">몰입</label>
+                </div>
+                <button class="upload-button" onclick="renderStudentIndividualCards()" style="margin-left:12px;">적용</button>
+            </div>
+
+            <div id="studentCardsContainer" class="student-cards">
+                <!-- Student cards with individual charts will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>© 2026 내일배움캠프 다면평가 대시보드 | 모든 데이터는 로컬에서 처리됩니다</p>
+    </div>
+
+    <script>
+        // Initialize empty state
+        const appState = {
+            track: "",
+            session: "",
+            class: "",
+            filterOptions: {
+                tracks: [],
+                sessions: [],
+                classes: []
+            },
+            chapters: [],
+            students: [],
+            selectedStudents: [],
+            chapterSummaries: {}
+        };
+
+        // Drag and drop functionality
+        const uploadArea = document.getElementById('uploadArea');
+        const excelInput = document.getElementById('excelInput');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            excelInput.files = e.dataTransfer.files;
+            handleExcelUpload();
+        });
+
+        uploadArea.addEventListener('click', () => {
+            excelInput.click();
+        });
+
+        excelInput.addEventListener('change', handleExcelUpload);
+
+        function triggerExcelUpload() {
+            excelInput.click();
+        }
+
+        function triggerJSONUpload() {
+            document.getElementById('jsonInput').click();
+        }
+
+        document.getElementById('jsonInput').addEventListener('change', handleJSONUpload);
+
+        function handleExcelUpload() {
+            const files = excelInput.files;
+            const chapterNameInput = document.getElementById('chapterNameInput');
+
+            for (let file of files) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(worksheet);
+
+                        // Extract chapter name from filename or use input
+                        let chapterName = chapterNameInput.value || file.name.replace(/\.[^/.]+$/, "");
+
+                        // Process the data
+                        processExcelData(rows, chapterName);
+
+                        chapterNameInput.value = '';
+                        computeChapterSummaries();
+                        updateChaptersDisplay();
+                        updateAllCharts();
+                    } catch (error) {
+                        alert('파일 처리 중 오류가 발생했습니다: ' + error.message);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            excelInput.value = '';
+        }
+
+        function processExcelData(rows, chapterName) {
+            // Add chapter if not exists
+            if (!appState.chapters.includes(chapterName)) {
+                appState.chapters.push(chapterName);
+            }
+
+            // Process each row
+            rows.forEach(row => {
+                const studentName = row['이름'];
+                if (!studentName) return;
+
+                let student = appState.students.find(s => s.name === studentName);
+                if (!student) {
+                    student = {
+                        name: studentName,
+                        class: row['반'] || 'A',
+                        specialty: row['주특기'] || '',
+                        data: []
+                    };
+                    appState.students.push(student);
+                }
+
+                // Remove old data for this chapter if exists
+                student.data = student.data.filter(d => d.chapter !== chapterName);
+
+                // Add new chapter data
+                student.data.push({
+                    chapter: chapterName,
+                    nps: parseFloat(row['NPS']) || 0,
+                    satisfaction: parseFloat(row['운영 만족도']) || 0,
+                    difficulty: parseFloat(row['난이도']) || 0,
+                    skill: parseFloat(row['실력']) || 0,
+                    growth: parseFloat(row['성장']) || 0,
+                    communication: parseFloat(row['소통']) || 0,
+                    engagement: parseFloat(row['몰입']) || 0
+                });
+            });
+        }
+
+        function updateChaptersDisplay() {
+            const chaptersList = document.getElementById('chaptersList');
+            chaptersList.innerHTML = '';
+
+            appState.chapters.forEach(chapter => {
+                const hasData = appState.students.some(s => s.data.some(d => d.chapter === chapter));
+                const chip = document.createElement('div');
+                chip.className = 'chapter-chip' + (hasData ? ' loaded' : '');
+                chip.draggable = true;
+                chip.setAttribute('data-chapter', chapter);
+                chip.addEventListener('dragstart', dragStartChapter);
+                chip.addEventListener('dragover', dragOverChapter);
+                chip.addEventListener('dragleave', dragLeaveChapter);
+                chip.addEventListener('drop', dropChapter);
+                chip.innerHTML = `
+                    ${chapter}
+                    ${hasData ? '<span style="color: #4caf50;">✓</span>' : ''}
+                    <button class="remove-btn" onclick="removeChapter('${chapter}')">×</button>
+                `;
+                chaptersList.appendChild(chip);
+            });
+
+            // Recompute chapter summaries and update detection module dropdowns
+            computeChapterSummaries();
+            populateDetectChapters();
+        }
+
+        // 챕터 드래그 앤 드롭
+        let draggedChapterName = null;
+
+        function dragStartChapter(e) {
+            draggedChapterName = e.currentTarget.getAttribute('data-chapter');
+            e.dataTransfer.effectAllowed = 'move';
+            e.currentTarget.style.opacity = '0.5';
+        }
+
+        function dragOverChapter(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function dragLeaveChapter(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function dropChapter(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+
+            const targetChapter = e.currentTarget.getAttribute('data-chapter');
+            if (draggedChapterName === targetChapter) {
+                draggedChapterName = null;
+                return;
+            }
+
+            const draggedIndex = appState.chapters.indexOf(draggedChapterName);
+            const targetIndex = appState.chapters.indexOf(targetChapter);
+
+            // 배열의 순서 바꾸기
+            [appState.chapters[draggedIndex], appState.chapters[targetIndex]] =
+            [appState.chapters[targetIndex], appState.chapters[draggedIndex]];
+
+            // 모든 draggable 요소의 opacity 복원
+            document.querySelectorAll('.chapter-chip').forEach(chip => {
+                chip.style.opacity = '1';
+            });
+
+            draggedChapterName = null;
+            updateChaptersDisplay();
+            updateAllCharts();
+        }
+
+        function removeChapter(chapterName) {
+            appState.chapters = appState.chapters.filter(c => c !== chapterName);
+            appState.students.forEach(student => {
+                student.data = student.data.filter(d => d.chapter !== chapterName);
+            });
+            updateChaptersDisplay();
+            updateAllCharts();
+        }
+
+        function exportDataAsJSON() {
+            const dataStr = JSON.stringify(appState, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `dashboard-data-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function handleJSONUpload() {
+            const file = document.getElementById('jsonInput').files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const loadedData = JSON.parse(e.target.result);
+                    Object.assign(appState, loadedData);
+                    if (!appState.chapterSummaries) appState.chapterSummaries = {};
+                    computeChapterSummaries();
+                    initFilterInputs();
+                    updateHeaderSubtitle();
+                    updateChaptersDisplay();
+                    updateStudentSelector();
+                    updateAllCharts();
+                    alert('데이터가 성공적으로 로드되었습니다.');
+                } catch (error) {
+                    alert('JSON 파일 처리 중 오류가 발생했습니다: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            document.getElementById('jsonInput').value = '';
+        }
+
+        function updateStudentSelector() {
+            const container = document.getElementById('studentMultiSelect');
+            container.innerHTML = '';
+
+            // 가나다 순 정렬
+            const sortedStudents = [...appState.students].sort((a, b) =>
+                a.name.localeCompare(b.name, 'ko-KR')
+            );
+
+            sortedStudents.forEach(student => {
+                const tag = document.createElement('div');
+                tag.className = 'student-tag' + (appState.selectedStudents.includes(student.name) ? ' selected' : '');
+                tag.innerHTML = `
+                    ${student.name}
+                    ${appState.selectedStudents.includes(student.name) ? '<span class="remove-x">×</span>' : ''}
+                `;
+                tag.addEventListener('click', () => toggleStudentSelection(student.name));
+                container.appendChild(tag);
+            });
+        }
+
+        function toggleStudentSelection(studentName) {
+            const index = appState.selectedStudents.indexOf(studentName);
+            if (index > -1) {
+                appState.selectedStudents.splice(index, 1);
+            } else {
+                appState.selectedStudents.push(studentName);
+            }
+            updateStudentSelector();
+            renderStudentIndividualCards();
+        }
+
+        // ─── Automatic Chapter Summary Computation ───────────────────────────
+        function computeChapterSummaries() {
+            appState.chapters.forEach(ch => {
+                const studentDataForCh = appState.students
+                    .map(s => s.data.find(d => d.chapter === ch))
+                    .filter(d => d);
+
+                if (studentDataForCh.length === 0) {
+                    appState.chapterSummaries[ch] = {
+                        nps: null, nps_0_6: null, nps_7_8: null, nps_9_10: null,
+                        satisfaction_avg: null, satisfaction_1_6: null, satisfaction_7_8: null, satisfaction_9_10: null,
+                        difficulty_avg: null, difficulty_5: null, difficulty_3_4: null, difficulty_1_2: null
+                    };
+                    return;
+                }
+
+                // NPS: 새로운 공식 적용 - (9-10 비율%) - (0-6 비율%)
+                const npsValues = studentDataForCh.map(d => d.nps);
+                const nps_0_6_count = npsValues.filter(v => v >= 0 && v <= 6).length;
+                const nps_7_8_count = npsValues.filter(v => v >= 7 && v <= 8).length;
+                const nps_9_10_count = npsValues.filter(v => v >= 9 && v <= 10).length;
+                const total = npsValues.length;
+
+                const nps_0_6_ratio = +(nps_0_6_count / total * 100).toFixed(1);
+                const nps_7_8 = +(nps_7_8_count / total * 100).toFixed(1);
+                const nps_9_10_ratio = +(nps_9_10_count / total * 100).toFixed(1);
+                const npsVal = +(nps_9_10_ratio - nps_0_6_ratio).toFixed(1);
+
+                // Satisfaction
+                const satVals = studentDataForCh.map(d => d.satisfaction);
+                const satisfaction_avg = +(satVals.reduce((a, b) => a + b, 0) / satVals.length).toFixed(1);
+                const satisfaction_1_6 = +(satVals.filter(v => v < 7).length / satVals.length * 100).toFixed(1);
+                const satisfaction_7_8 = +(satVals.filter(v => v >= 7 && v < 9).length / satVals.length * 100).toFixed(1);
+                const satisfaction_9_10 = +(satVals.filter(v => v >= 9).length / satVals.length * 100).toFixed(1);
+
+                // Difficulty
+                const diffVals = studentDataForCh.map(d => d.difficulty);
+                const difficulty_avg = +(diffVals.reduce((a, b) => a + b, 0) / diffVals.length).toFixed(1);
+                const difficulty_5 = +(diffVals.filter(v => v === 5).length / diffVals.length * 100).toFixed(1);
+                const difficulty_3_4 = +(diffVals.filter(v => v >= 3 && v <= 4).length / diffVals.length * 100).toFixed(1);
+                const difficulty_1_2 = +(diffVals.filter(v => v >= 1 && v <= 2).length / diffVals.length * 100).toFixed(1);
+
+                appState.chapterSummaries[ch] = {
+                    nps: npsVal, nps_0_6: nps_0_6_ratio, nps_7_8, nps_9_10: nps_9_10_ratio,
+                    satisfaction_avg, satisfaction_1_6, satisfaction_7_8, satisfaction_9_10,
+                    difficulty_avg, difficulty_5, difficulty_3_4, difficulty_1_2
+                };
+            });
+        }
+
+        // Map metric key + bracket index → chapterSummaries field name
+        function getSummaryBracketData(metricKey, bi) {
+            const fieldMap = {
+                nps:          ['nps_0_6', 'nps_7_8', 'nps_9_10'],
+                satisfaction: ['satisfaction_1_6', 'satisfaction_7_8', 'satisfaction_9_10'],
+                difficulty:   ['difficulty_5', 'difficulty_3_4', 'difficulty_1_2']
+            };
+            const field = (fieldMap[metricKey] || [])[bi];
+            if (!field) return appState.chapters.map(() => null);
+            return appState.chapters.map(ch => {
+                const v = appState.chapterSummaries[ch]?.[field];
+                return (v !== null && v !== undefined) ? v : null;
+            });
+        }
+
+        function getSummaryMainData(metricKey) {
+            const fieldMap = { nps: 'nps', satisfaction: 'satisfaction_avg', difficulty: 'difficulty_avg' };
+            const field = fieldMap[metricKey];
+            return appState.chapters.map(ch => {
+                const v = appState.chapterSummaries[ch]?.[field];
+                return (v !== null && v !== undefined) ? v : null;
+            });
+        }
+
+        // Track all trend chart instances for cleanup
+        let trendChartInstances = [];
+
+        // Metric definitions with bracket info
+        const TREND_METRICS = {
+            nps: {
+                key: 'nps', label: 'NPS', color: '#e63946', max: 100,
+                brackets: [
+                    { label: '0-6 비중 변화', range: [0, 6], color: '#ff6b6b' },
+                    { label: '7-8 비중 변화', range: [7, 8], color: '#ffd93d' },
+                    { label: '9-10 비중 변화', range: [9, 10], color: '#6bcf7f' }
+                ]
+            },
+            satisfaction: {
+                key: 'satisfaction', label: '만족도', color: '#f77f88', max: 10,
+                brackets: [
+                    { label: '1-6 비중 변화', range: [1, 6], color: '#ff6b6b' },
+                    { label: '7-8 비중 변화', range: [7, 8], color: '#ffd93d' },
+                    { label: '9-10 비중 변화', range: [9, 10], color: '#6bcf7f' }
+                ]
+            },
+            difficulty: {
+                key: 'difficulty', label: '난이도', color: '#ff9800', max: 5,
+                brackets: [
+                    { label: '5 (매우 어려움) 비중', range: [5, 5], color: '#ff6b6b' },
+                    { label: '3-4 비중 변화', range: [3, 4], color: '#ffd93d' },
+                    { label: '1-2 비중 변화', range: [1, 2], color: '#6bcf7f' }
+                ]
+            }
+        };
+
+        function updateTrendCharts() {
+            const container = document.getElementById('trendContainer');
+            container.innerHTML = '';
+            trendChartInstances.forEach(c => c.destroy());
+            trendChartInstances = [];
+
+            const selected = [];
+            if (document.getElementById('npsCheck').checked) selected.push(TREND_METRICS.nps);
+            if (document.getElementById('satisfactionCheck').checked) selected.push(TREND_METRICS.satisfaction);
+            if (document.getElementById('difficultyCheck').checked) selected.push(TREND_METRICS.difficulty);
+
+            if (selected.length === 0) {
+                container.innerHTML = '<p style="color:#999;text-align:center;padding:30px;">표시할 항목을 선택한 뒤 적용을 눌러주세요.</p>';
+                return;
+            }
+
+            selected.forEach((metric, mi) => {
+                const row = document.createElement('div');
+                row.className = 'trend-metric-row';
+                row.innerHTML = `
+                    <div class="trend-metric-title">${metric.key === 'nps' ? 'NPS 챕터별 추이 (9-10비율% − 0-6비율%)' : metric.label + ' 전체 챕터 평균'}</div>
+                    <div class="trend-metric-body">
+                        <div class="trend-main-chart">
+                            <canvas id="trend-main-${mi}"></canvas>
+                        </div>
+                        <div class="trend-proportions">
+                            ${metric.brackets.map((b, bi) => `
+                                <div class="trend-proportion-item">
+                                    <div class="trend-proportion-label">${b.label}</div>
+                                    <div class="trend-proportion-canvas">
+                                        <canvas id="trend-prop-${mi}-${bi}"></canvas>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+
+            // Render after DOM ready
+            requestAnimationFrame(() => {
+                selected.forEach((metric, mi) => {
+                    const mainData = getSummaryMainData(metric.key);
+
+                    const isNps = metric.key === 'nps';
+                    const yMin = isNps ? -100 : 0;
+                    const yMax = metric.max;
+                    const mainLabel = metric.label + (isNps ? '' : ' 평균');
+
+                    const mainCtx = document.getElementById(`trend-main-${mi}`).getContext('2d');
+                    const mainChart = new Chart(mainCtx, {
+                        type: 'line',
+                        data: {
+                            labels: appState.chapters,
+                            datasets: [{
+                                label: mainLabel,
+                                data: mainData,
+                                borderColor: metric.color,
+                                backgroundColor: metric.color + '15',
+                                tension: 0.3,
+                                fill: true,
+                                pointRadius: 6,
+                                pointBackgroundColor: metric.color,
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                borderWidth: 3
+                            }]
+                        },
+                        plugins: [ChartDataLabels],
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            layout: { padding: { top: 28, right: 16 } },
+                            plugins: {
+                                legend: { display: false },
+                                datalabels: {
+                                    anchor: 'end', align: 'top',
+                                    color: '#fff',
+                                    backgroundColor: '#222',
+                                    borderRadius: 4,
+                                    padding: 6,
+                                    font: { size: 14, weight: 'bold' },
+                                    formatter: v => v !== null ? v : ''
+                                }
+                            },
+                            scales: {
+                                x: { ticks: { font: { size: 11 } } },
+                                y: {
+                                    min: yMin,
+                                    suggestedMax: yMax,
+                                    ticks: {
+                                        stepSize: isNps ? 20 : (metric.max <= 5 ? 1 : 2),
+                                        callback: v => v
+                                    },
+                                    grid: { color: '#f0f0f0' }
+                                }
+                            }
+                        }
+                    });
+                    trendChartInstances.push(mainChart);
+
+                    // 2) Bracket proportion bar charts
+                    metric.brackets.forEach((bracket, bi) => {
+                        const pctData = getSummaryBracketData(metric.key, bi);
+                        const propCtx = document.getElementById(`trend-prop-${mi}-${bi}`).getContext('2d');
+                        const propChart = new Chart(propCtx, {
+                            type: 'bar',
+                            data: {
+                                labels: appState.chapters,
+                                datasets: [{
+                                    data: pctData,
+                                    backgroundColor: bracket.color + 'bb',
+                                    borderColor: bracket.color,
+                                    borderWidth: 1,
+                                    borderRadius: 4
+                                }]
+                            },
+                            plugins: [ChartDataLabels],
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                layout: { padding: { top: 16, right: 8 } },
+                                plugins: {
+                                    legend: { display: false },
+                                    datalabels: {
+                                        anchor: 'end', align: 'top',
+                                        color: '#fff',
+                                        backgroundColor: '#333',
+                                        borderRadius: 3,
+                                        padding: 5,
+                                        font: { size: 12, weight: 'bold' },
+                                        formatter: v => v !== null ? v + '%' : ''
+                                    }
+                                },
+                                scales: {
+                                    x: { ticks: { font: { size: 9 }, maxRotation: 0 } },
+                                    y: {
+                                        display: true,
+                                        beginAtZero: true,
+                                        max: 100,
+                                        ticks: {
+                                            stepSize: 25,
+                                            font: { size: 9 },
+                                            callback: v => v + '%'
+                                        },
+                                        grid: { color: '#f5f5f5' }
+                                    }
+                                }
+                            }
+                        });
+                        trendChartInstances.push(propChart);
+                    });
+                });
+            });
+        }
+
+        // Track individual student chart instances for cleanup
+        let studentMiniCharts = [];
+
+        function getSelectedStudentMetrics() {
+            const metrics = [];
+            if (document.getElementById('sNpsCheck').checked) metrics.push({ key: 'nps', label: 'NPS', color: '#e63946', max: 10 });
+            if (document.getElementById('sSatisfactionCheck').checked) metrics.push({ key: 'satisfaction', label: '만족도', color: '#f77f88', max: 10 });
+            if (document.getElementById('sDifficultyCheck').checked) metrics.push({ key: 'difficulty', label: '난이도', color: '#ff9800', max: 5 });
+            if (document.getElementById('sSkillCheck').checked) metrics.push({ key: 'skill', label: '실력', color: '#2196f3', max: 7 });
+            if (document.getElementById('sCommunicationCheck').checked) metrics.push({ key: 'communication', label: '소통', color: '#4caf50', max: 7 });
+            if (document.getElementById('sEngagementCheck').checked) metrics.push({ key: 'engagement', label: '몰입', color: '#9c27b0', max: 7 });
+            return metrics;
+        }
+
+        function renderStudentIndividualCards() {
+            const container = document.getElementById('studentCardsContainer');
+            container.innerHTML = '';
+
+            // Destroy previous charts
+            studentMiniCharts.forEach(c => c.destroy());
+            studentMiniCharts = [];
+
+            const selectedMetrics = getSelectedStudentMetrics();
+            if (selectedMetrics.length === 0) {
+                container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">표시할 항목을 선택하세요.</p>';
+                return;
+            }
+
+            let displayedStudents = appState.selectedStudents.length > 0
+                ? appState.students.filter(s => appState.selectedStudents.includes(s.name))
+                : appState.students;
+
+            if (displayedStudents.length === 0) {
+                container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">수강생을 선택하세요.</p>';
+                return;
+            }
+
+            // Sort by student name in Korean alphabetical order
+            displayedStudents = displayedStudents.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+
+            displayedStudents.forEach((student, sIdx) => {
+                const card = document.createElement('div');
+                card.className = 'student-card';
+
+                const chartsHTML = selectedMetrics.map((m, mIdx) => `
+                    <div class="mini-chart-item">
+                        <div class="mini-chart-label">${m.label}</div>
+                        <div class="mini-chart-canvas">
+                            <canvas id="mc-${sIdx}-${mIdx}"></canvas>
+                        </div>
+                    </div>
+                `).join('');
+
+                card.innerHTML = `
+                    <div class="student-card-header">
+                        <div class="student-name">${student.name}</div>
+                    </div>
+                    ${chartsHTML}
+                `;
+                container.appendChild(card);
+            });
+
+            // Render charts after DOM is ready
+            requestAnimationFrame(() => {
+                displayedStudents.forEach((student, sIdx) => {
+                    selectedMetrics.forEach((metric, mIdx) => {
+                        const canvasId = `mc-${sIdx}-${mIdx}`;
+                        const canvas = document.getElementById(canvasId);
+                        if (!canvas) return;
+
+                        const values = appState.chapters.map(ch => {
+                            const d = student.data.find(dd => dd.chapter === ch);
+                            return d ? d[metric.key] : null;
+                        });
+
+                        const ctx = canvas.getContext('2d');
+                        const chart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: appState.chapters,
+                                datasets: [{
+                                    data: values,
+                                    borderColor: metric.color,
+                                    backgroundColor: metric.color + '15',
+                                    tension: 0.3,
+                                    fill: true,
+                                    pointRadius: 4,
+                                    pointBackgroundColor: metric.color,
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 1.5,
+                                    borderWidth: 2
+                                }]
+                            },
+                            plugins: [ChartDataLabels],
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                layout: { padding: { top: 16, right: 8, left: 4 } },
+                                plugins: {
+                                    legend: { display: false },
+                                    datalabels: {
+                                        anchor: 'end',
+                                        align: 'top',
+                                        color: '#fff',
+                                        backgroundColor: '#333',
+                                        borderRadius: 3,
+                                        padding: 4,
+                                        font: { size: 11, weight: 'bold' },
+                                        formatter: (val) => val !== null ? (Number.isInteger(val) ? val : val.toFixed(1)) : ''
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        display: true,
+                                        ticks: { font: { size: 8 }, maxRotation: 0 }
+                                    },
+                                    y: {
+                                        display: true,
+                                        beginAtZero: true,
+                                        suggestedMax: metric.max,
+                                        ticks: {
+                                            font: { size: 8 },
+                                            callback: v => v
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        studentMiniCharts.push(chart);
+                    });
+                });
+            });
+        }
+
+        // ─── Detection Module ──────────────────────────────────────────────
+
+        function switchDetectTab(tabId) {
+            document.querySelectorAll('.detect-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.detect-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('panel-' + tabId).classList.add('active');
+            const tabs = document.querySelectorAll('.detect-tab');
+            const tabMap = { npsTransit: 0, satTransit: 1, diffDetect: 2, crossDetect: 3 };
+            if (tabMap[tabId] !== undefined) tabs[tabMap[tabId]].classList.add('active');
+        }
+
+        function toggleBracket(btn) {
+            btn.classList.toggle('selected');
+        }
+
+        function getSelectedBrackets(containerId) {
+            return Array.from(document.querySelectorAll('#' + containerId + ' .bracket-btn.selected'))
+                .map(b => b.dataset.bracket);
+        }
+
+        function npsBracket(val) {
+            if (val === null || val === undefined) return null;
+            if (val <= 6) return '0-6';
+            if (val <= 8) return '7-8';
+            return '9-10';
+        }
+
+        function satBracket(val) {
+            if (val === null || val === undefined) return null;
+            if (val < 7) return '1-6';
+            if (val < 9) return '7-8';
+            return '9-10';
+        }
+
+        function bracketBadge(bracket) {
+            const colorMap = {
+                '0-6': 'badge-red', '1-6': 'badge-red',
+                '7-8': 'badge-yellow',
+                '9-10': 'badge-green',
+                '1': 'badge-green', '2': 'badge-green',
+                '3': 'badge-yellow', '4': 'badge-yellow',
+                '5': 'badge-red'
+            };
+            return `<span class="detect-badge ${colorMap[bracket] || 'badge-blue'}">${bracket}</span>`;
+        }
+
+        function populateDetectChapters() {
+            const ids = [
+                'npsFromChapter', 'npsToChapter',
+                'satFromChapter', 'satToChapter',
+                'diffChapter', 'crossChapter'
+            ];
+            ids.forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                sel.innerHTML = '';
+                appState.chapters.forEach((ch, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = ch;
+                    opt.textContent = ch;
+                    sel.appendChild(opt);
+                });
+            });
+            if (appState.chapters.length >= 2) {
+                ['npsToChapter', 'satToChapter'].forEach(id => {
+                    const sel = document.getElementById(id);
+                    if (sel) sel.selectedIndex = 1;
+                });
+            }
+        }
+
+        // ── 1) NPS 구간 이동 탐지 ──
+        function runNpsTransition() {
+            const fromCh = document.getElementById('npsFromChapter').value;
+            const toCh = document.getElementById('npsToChapter').value;
+            const fromBrackets = getSelectedBrackets('npsFromBrackets');
+            const toBrackets = getSelectedBrackets('npsToBrackets');
+            const container = document.getElementById('results-npsTransit');
+
+            if (!fromBrackets.length || !toBrackets.length) {
+                container.innerHTML = '<p class="detect-results-empty">이전 구간과 이후 구간을 각각 1개 이상 선택하세요.</p>';
+                return;
+            }
+
+            const matches = [];
+            appState.students.forEach(s => {
+                const fromData = s.data.find(d => d.chapter === fromCh);
+                const toData = s.data.find(d => d.chapter === toCh);
+                if (!fromData || !toData) return;
+                const fb = npsBracket(fromData.nps);
+                const tb = npsBracket(toData.nps);
+                if (fromBrackets.includes(fb) && toBrackets.includes(tb)) {
+                    matches.push({ name: s.name, fromVal: fromData.nps, toVal: toData.nps, fromB: fb, toB: tb });
+                }
+            });
+
+            if (!matches.length) {
+                container.innerHTML = '<p class="detect-results-empty">조건에 해당하는 수강생이 없습니다.</p>';
+                return;
+            }
+
+            // 가나다순 정렬
+            matches.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+
+            container.innerHTML = `
+                <div class="detect-count">총 ${matches.length}명 탐지됨</div>
+                <table class="detect-result-table">
+                    <thead><tr><th>수강생</th><th>${fromCh} (NPS)</th><th></th><th>${toCh} (NPS)</th></tr></thead>
+                    <tbody>
+                        ${matches.map(m => `<tr>
+                            <td><strong>${m.name}</strong></td>
+                            <td>${m.fromVal} ${bracketBadge(m.fromB)}</td>
+                            <td style="text-align:center;color:#999;">→</td>
+                            <td>${m.toVal} ${bracketBadge(m.toB)}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        // ── 2) 만족도 구간 이동 탐지 ──
+        function runSatTransition() {
+            const fromCh = document.getElementById('satFromChapter').value;
+            const toCh = document.getElementById('satToChapter').value;
+            const fromBrackets = getSelectedBrackets('satFromBrackets');
+            const toBrackets = getSelectedBrackets('satToBrackets');
+            const container = document.getElementById('results-satTransit');
+
+            if (!fromBrackets.length || !toBrackets.length) {
+                container.innerHTML = '<p class="detect-results-empty">이전 구간과 이후 구간을 각각 1개 이상 선택하세요.</p>';
+                return;
+            }
+
+            const matches = [];
+            appState.students.forEach(s => {
+                const fromData = s.data.find(d => d.chapter === fromCh);
+                const toData = s.data.find(d => d.chapter === toCh);
+                if (!fromData || !toData) return;
+                const fb = satBracket(fromData.satisfaction);
+                const tb = satBracket(toData.satisfaction);
+                if (fromBrackets.includes(fb) && toBrackets.includes(tb)) {
+                    matches.push({ name: s.name, fromVal: fromData.satisfaction, toVal: toData.satisfaction, fromB: fb, toB: tb });
+                }
+            });
+
+            if (!matches.length) {
+                container.innerHTML = '<p class="detect-results-empty">조건에 해당하는 수강생이 없습니다.</p>';
+                return;
+            }
+
+            // 가나다순 정렬
+            matches.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+
+            container.innerHTML = `
+                <div class="detect-count">총 ${matches.length}명 탐지됨</div>
+                <table class="detect-result-table">
+                    <thead><tr><th>수강생</th><th>${fromCh} (만족도)</th><th></th><th>${toCh} (만족도)</th></tr></thead>
+                    <tbody>
+                        ${matches.map(m => `<tr>
+                            <td><strong>${m.name}</strong></td>
+                            <td>${m.fromVal} ${bracketBadge(m.fromB)}</td>
+                            <td style="text-align:center;color:#999;">→</td>
+                            <td>${m.toVal} ${bracketBadge(m.toB)}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        // ── 3) 난이도 응답 탐지 ──
+        function runDifficultyDetect() {
+            const ch = document.getElementById('diffChapter').value;
+            const selectedVals = getSelectedBrackets('diffValues').map(Number);
+            const container = document.getElementById('results-diffDetect');
+
+            if (!selectedVals.length) {
+                container.innerHTML = '<p class="detect-results-empty">난이도 값을 1개 이상 선택하세요.</p>';
+                return;
+            }
+
+            const groups = {};
+            selectedVals.forEach(v => { groups[v] = []; });
+
+            appState.students.forEach(s => {
+                const d = s.data.find(dd => dd.chapter === ch);
+                if (!d) return;
+                const dVal = Math.round(d.difficulty);
+                if (selectedVals.includes(dVal)) {
+                    groups[dVal].push({ name: s.name, raw: d.difficulty });
+                }
+            });
+
+            const totalFound = Object.values(groups).reduce((sum, arr) => sum + arr.length, 0);
+            if (!totalFound) {
+                container.innerHTML = '<p class="detect-results-empty">조건에 해당하는 수강생이 없습니다.</p>';
+                return;
+            }
+
+            let html = `<div class="detect-count">총 ${totalFound}명 탐지됨 (${ch})</div>`;
+            html += '<table class="detect-result-table"><thead><tr><th>난이도</th><th>인원</th><th>수강생</th></tr></thead><tbody>';
+            selectedVals.sort((a, b) => a - b).forEach(v => {
+                const students = groups[v];
+                students.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+                html += `<tr>
+                    <td>${bracketBadge(String(v))}</td>
+                    <td>${students.length}명</td>
+                    <td>${students.length ? students.map(s => `<strong>${s.name}</strong>`).join(', ') : '<span style="color:#bbb;">없음</span>'}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // ── 4) NPS × 만족도 교차 탐지 ──
+        function runCrossDetect() {
+            const ch = document.getElementById('crossChapter').value;
+            const npsSel = getSelectedBrackets('crossNpsBrackets');
+            const satSel = getSelectedBrackets('crossSatBrackets');
+            const container = document.getElementById('results-crossDetect');
+
+            if (!npsSel.length || !satSel.length) {
+                container.innerHTML = '<p class="detect-results-empty">NPS 구간과 만족도 구간을 각각 1개 이상 선택하세요.</p>';
+                return;
+            }
+
+            const matches = [];
+            appState.students.forEach(s => {
+                const d = s.data.find(dd => dd.chapter === ch);
+                if (!d) return;
+                const nb = npsBracket(d.nps);
+                const sb = satBracket(d.satisfaction);
+                if (npsSel.includes(nb) && satSel.includes(sb)) {
+                    matches.push({ name: s.name, nps: d.nps, npsB: nb, sat: d.satisfaction, satB: sb });
+                }
+            });
+
+            if (!matches.length) {
+                container.innerHTML = '<p class="detect-results-empty">조건에 해당하는 수강생이 없습니다.</p>';
+                return;
+            }
+
+            // 가나다순 정렬
+            matches.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+
+            container.innerHTML = `
+                <div class="detect-count">총 ${matches.length}명 탐지됨 (${ch})</div>
+                <table class="detect-result-table">
+                    <thead><tr><th>수강생</th><th>NPS</th><th>만족도</th></tr></thead>
+                    <tbody>
+                        ${matches.map(m => `<tr>
+                            <td><strong>${m.name}</strong></td>
+                            <td>${m.nps} ${bracketBadge(m.npsB)}</td>
+                            <td>${m.sat} ${bracketBadge(m.satB)}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        function updateAllCharts() {
+            updateTrendCharts();
+            renderStudentIndividualCards();
+        }
+
+        // ─── Filter input management ───────────────────────────────────────
+        function initFilterInputs() {
+            try {
+                const savedTrack = localStorage.getItem('dashboard_track');
+                const savedSession = localStorage.getItem('dashboard_session');
+                const savedClass = localStorage.getItem('dashboard_class');
+
+                if (savedTrack) appState.track = savedTrack;
+                if (savedSession) appState.session = savedSession;
+                if (savedClass) appState.class = savedClass;
+            } catch (e) {
+                // localStorage 접근 불가 - 무시
+            }
+
+            document.getElementById('trackInput').value = appState.track;
+            document.getElementById('sessionInput').value = appState.session;
+            document.getElementById('classInput').value = appState.class;
+        }
+
+        function saveFilterInputs() {
+            try {
+                localStorage.setItem('dashboard_track', appState.track);
+                localStorage.setItem('dashboard_session', appState.session);
+                localStorage.setItem('dashboard_class', appState.class);
+            } catch (e) {
+                // localStorage 접근 불가 - 무시
+            }
+        }
+
+        function updateHeaderSubtitle() {
+            const sub = document.getElementById('headerSubtitle');
+            if (sub) sub.textContent = appState.track || '제작자: KDT 교육운영팀 디자인/마케터 파트 (인턴) 임도윤';
+        }
+
+        // Initialize the dashboard
+        function initDashboard() {
+            initFilterInputs();
+            updateChaptersDisplay();
+            computeChapterSummaries();
+            populateDetectChapters();
+            updateStudentSelector();
+            updateAllCharts();
+        }
+
+        initDashboard();
+    </script>
+</body>
+</html>
